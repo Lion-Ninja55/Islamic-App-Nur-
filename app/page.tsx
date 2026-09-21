@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Settings, MapPin, RefreshCw, Clock, Calendar } from 'lucide-react'
 import { useSettings } from '@/context/settings-context'
-import { usePrayerNotifications } from '@/hooks/usePrayerNotifications'
+import { useNotifications } from '@/context/notification-context'
 import { useState, useEffect } from 'react'
 
 interface PrayerTimesData {
@@ -35,6 +35,7 @@ const prayers = [
   { name: 'Sunrise', key: 'Sunrise' as const },
   { name: 'Dhuhr', key: 'Dhuhr' as const },
   { name: 'Asr', key: 'Asr' as const },
+  { name: 'Sunset', key: 'Sunset' as const },
   { name: 'Maghrib', key: 'Maghrib' as const },
   { name: 'Isha', key: 'Isha' as const },
 ]
@@ -46,9 +47,13 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [nextPrayer, setNextPrayer] = useState<{ name: string; time: string; remaining: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  
-  // Prayer notifications
-  usePrayerNotifications(prayerTimes)
+
+  /*
+    Scheduling state is read from the app-level provider, not owned here. This page
+    is now a pure consumer: unmounting it - by navigating to Quran or Settings, or
+    by any other means - cannot disturb a single armed alarm.
+  */
+  const { scheduling } = useNotifications()
 
    useEffect(() => {
      if (settings.location.latitude && settings.location.longitude) {
@@ -209,8 +214,23 @@ export default function HomePage() {
                   <h2 className="text-xl font-semibold">Prayer Times</h2>
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    Current Location ✓
+                    {settings.location.city || 'Current Location'} ✓
                   </p>
+                  {settings.notifications.enabled && scheduling.ready && (
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        scheduling.notificationsDisabled
+                          ? 'text-destructive'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {scheduling.notificationsDisabled
+                        ? 'Notifications are switched off in system settings'
+                        : `${scheduling.scheduledCount} prayer notification${
+                            scheduling.scheduledCount === 1 ? '' : 's'
+                          } scheduled`}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -250,7 +270,7 @@ export default function HomePage() {
                 <Button onClick={requestLocation}>Allow Location Access</Button>
               </Card>
             ) : isLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 {prayers.map((prayer) => (
                   <Card key={prayer.key} className="p-4 text-center">
                     <div className="h-6 bg-muted rounded animate-pulse mb-2" />
@@ -259,7 +279,7 @@ export default function HomePage() {
                 ))}
               </div>
             ) : prayerTimes && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                 {prayers.map((prayer) => {
                   const time = prayerTimes[prayer.key]
                   const isNext = nextPrayer?.name === prayer.name

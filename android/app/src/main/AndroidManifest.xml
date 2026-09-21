@@ -1,4 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nur+ Android manifest.
+
+    PERMISSION POLICY
+    =================
+    Only permissions that are load-bearing for the two things this app actually
+    does off-device - fetching prayer times and raising prayer/Adhaan alarms - are
+    declared. There is no analytics, no advertising, no background location, no
+    contacts, no storage and no foreground service.
+
+    INTERNET
+        Prayer times come from api.aladhan.com and the Quran text/audio from
+        api.alquran.cloud and cdn.islamic.network. Without it the app cannot
+        compute prayer times at all. Note this is a *normal* permission: no prompt.
+
+    POST_NOTIFICATIONS                                       (Android 13+ / API 33+)
+        Runtime permission required to post ANY notification. Requested in context
+        when the user turns notifications on in Settings, never on first launch.
+        Also contributed by the Capacitor Local Notifications plugin manifest, which
+        is harmless: the manifest merger unions them into one declaration.
+
+    SCHEDULE_EXACT_ALARM                                     (Android 12+ / API 31+)
+        Special app access (NOT a runtime permission). Without it Android downgrades
+        every `AlarmManager.setExact*` call to an inexact alarm, and a prayer alert
+        can then arrive up to ~15 minutes late. Because it can be revoked at any time
+        from system settings - and doing so makes Android delete already-scheduled
+        exact alarms - the app re-checks it and re-schedules on every foreground
+        transition. See lib/notifications/permissions.ts.
+
+    USE_EXACT_ALARM                                          (Android 13+ / API 33+)
+        Install-time grant that lets the app schedule exact alarms without sending
+        the user into a system-settings screen. It is intended for apps whose core
+        function is time-critical alarms; a prayer-time application is squarely in
+        that category, and the user's daily obligatory prayers are the alarm.
+
+        DELIBERATE TRADE-OFF, RECORDED HONESTLY: Google Play restricts this
+        permission to alarm-clock and calendar apps, so it would need justification
+        for a Play Store listing. Nur+ is distributed as a directly-installed APK, so
+        that restriction does not apply, and the benefit - exact prayer alarms with no
+        extra permission friction - is the whole point of the app. If this is ever
+        submitted to Play, remove this line and rely on the SCHEDULE_EXACT_ALARM
+        prompt path, which is already fully implemented.
+
+    RECEIVE_BOOT_COMPLETED
+        Required so the notification plugin's LocalNotificationRestoreReceiver can
+        re-arm every scheduled alarm after a reboot, a quick-boot, or a direct-boot
+        unlock. Without it, every scheduled prayer alert would be lost on restart.
+        The receiver itself is declared by the plugin, not by this file.
+
+    WAKE_LOCK
+        The plugin's TimedNotificationPublisher takes a short wake lock so the alarm
+        can actually be delivered while the device is dozing. Without it, alarms
+        scheduled with `allowWhileIdle` may be skipped.
+
+    VIBRATE
+        Required for the `vibration: true` notification channels (the default prayer
+        channel and the Adhaan channel). Without it those channels would be silent
+        even when the user expects a vibration.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
@@ -35,7 +94,24 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
-
+    <!-- Needed to fetch prayer times and Quran content. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 13+: required to post notifications at all. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Android 12+: keeps prayer alarms exact instead of +/- 15 minutes. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Android 13+: install-time exact-alarm grant. See the note above. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Re-arm every scheduled alarm after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Let a dozing device deliver the alarm. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Vibrating prayer and Adhaan channels. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

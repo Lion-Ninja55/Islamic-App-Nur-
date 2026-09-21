@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nur+ status-bar notification icon (Android "small icon").
+
+    TWO RULES GOVERN THIS FILE, AND THE PREVIOUS BUILD BROKE BOTH:
+
+    1. It must live in res/drawable. Capacitor resolves `smallIcon` with
+       AssetUtil.getResourceID(context, name, "drawable") - for the per-notification
+       value AND for the plugin default. The old code passed "ic_launcher_foreground",
+       which only exists in the mipmap-* folders, so the lookup returned 0 and Android
+       silently substituted android.R.drawable.ic_dialog_info (the generic "info"
+       glyph) on every single prayer notification.
+
+    2. It must be a monochrome alpha mask. Android uses only the alpha channel and
+       tints the result, so a full-colour launcher icon would render as a solid
+       white blob. Only #FFFFFFFF fills are used here.
+
+    Artwork: the Nur+ crescent. The crescent is produced by two overlapping circles
+    combined with the even-odd fill rule (API 24+, which is this app's minSdk), so it
+    stays crisp at every density without any bitmap assets.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M1,12 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0 z M7.5,12 a8.5,8.5 0 1,0 17,0 a8.5,8.5 0 1,0 -17,0 z" />
+</vector>

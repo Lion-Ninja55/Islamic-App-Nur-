@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nur+ Adhaan Player</title>
+    <style>
+      html,
+      body {
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        background: transparent;
+      }
+      audio {
+        position: fixed;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <audio id="adhan" preload="auto"></audio>
+    <script>
+      const audio = document.getElementById('adhan');
+      window.nurplusPlay = (file, volume = 0.9) => {
+        audio.src = file;
+        audio.volume = Math.max(0, Math.min(1, Number(volume) || 0.9));
+        audio.currentTime = 0;
+        return audio.play().catch((error) => {
+          console.warn('[Nur+] Adhaan playback was blocked:', error);
+        });
+      };
+      window.nurplusStop = () => {
+        audio.pause();
+        audio.currentTime = 0;
+      };
+    </script>
+  </body>
+</html>

@@ -1,11 +1,8 @@
-"use client"
-
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -14,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useSettings } from '@/context/settings-context'
-import { Bell, BellOff } from 'lucide-react'
+import { NotificationSettings } from '@/components/settings/notification-settings'
 
 const calculationMethods = [
   { value: '0', label: 'Jafari / Shia Ithna-Ashari', description: 'Ithna Ashari' },
@@ -45,10 +42,6 @@ export function SalahSettings() {
 
   const handleAdjustmentChange = (prayer: keyof typeof settings.adjustments, value: number) => {
     updateNestedSettings('adjustments', { [prayer]: value })
-  }
-
-  const handleNotificationChange = (key: keyof typeof settings.notifications, value: boolean | number) => {
-    updateNestedSettings('notifications', { [key]: value })
   }
 
   return (
@@ -162,8 +155,7 @@ export function SalahSettings() {
           </div>
         </CardContent>
       </Card>
-
-      {/* High Latitude Rule */}
+{/* High Latitude Rule */}
       <Card className="overflow-hidden border-muted-foreground/10">
         <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b border-muted-foreground/10">
           <div className="flex items-center gap-3">
@@ -220,13 +212,14 @@ export function SalahSettings() {
             <div>
               <CardTitle>Manual Time Adjustments</CardTitle>
               <CardDescription>
-                Fine-tune prayer times by adding or subtracting minutes
+                Fine-tune prayer times by adding or subtracting minutes. These corrections
+                are also applied to scheduled prayer notifications.
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {(['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as const).map((prayer) => (
+          {(['fajr', 'sunrise', 'dhuhr', 'asr', 'sunset', 'maghrib', 'isha'] as const).map((prayer) => (
             <div key={prayer} className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="capitalize">{prayer}</Label>
@@ -247,86 +240,12 @@ export function SalahSettings() {
         </CardContent>
       </Card>
 
-      {/* Notifications */}
-      <Card className="overflow-hidden border-accent/20">
-        <CardHeader className="bg-gradient-to-r from-accent/10 to-transparent border-b border-accent/10">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-accent/20 flex items-center justify-center">
-              <Bell className="h-4 w-4 text-accent-foreground" />
-            </div>
-            <div>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>
-                Configure prayer time reminders and alerts
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {settings.notifications.enabled ? (
-                <Bell className="h-5 w-5 text-primary" />
-              ) : (
-                <BellOff className="h-5 w-5 text-muted-foreground" />
-              )}
-              <div className="space-y-0.5">
-                <Label>Enable Notifications</Label>
-                <p className="text-sm text-muted-foreground">
-                  Receive alerts for prayer times
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.notifications.enabled}
-              onCheckedChange={(checked) => handleNotificationChange('enabled', checked)}
-            />
-          </div>
-
-          {settings.notifications.enabled && (
-            <>
-              <Separator />
-
-              <div className="space-y-4">
-                <Label>Notify for these prayers</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {(['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as const).map((prayer) => (
-                    <div key={prayer} className="flex items-center justify-between">
-                      <Label className="capitalize font-normal">{prayer}</Label>
-                      <Switch
-                        checked={settings.notifications[prayer]}
-                        onCheckedChange={(checked) => handleNotificationChange(prayer, checked)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Reminder Before Adhan</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {settings.notifications.beforeAdhan} minutes
-                  </span>
-                </div>
-                <Slider
-                  value={[settings.notifications.beforeAdhan]}
-                  min={0}
-                  max={60}
-                  step={5}
-                  onValueChange={([value]) => handleNotificationChange('beforeAdhan', value)}
-                  className="max-w-md"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Get notified before the prayer time. Set to 0 to disable.
-                </p>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/*
+        Notifications live in their own component and read their state from the
+        app-level NotificationProvider rather than from this page, so the controls
+        act on the same scheduler the rest of the app uses.
+      */}
+      <NotificationSettings />
     </div>
   )
 }

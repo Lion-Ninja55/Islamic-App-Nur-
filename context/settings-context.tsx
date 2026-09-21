@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import type { AlertStyle } from '@/lib/notifications/types'
+import { DEFAULT_ADHAAN_SOUND_ID } from '@/lib/notifications/adhaan-sounds'
 
 export interface Settings {
   // Accent Color
@@ -23,6 +25,7 @@ export interface Settings {
     sunrise: number
     dhuhr: number
     asr: number
+    sunset: number
     maghrib: number
     isha: number
   }
@@ -32,9 +35,14 @@ export interface Settings {
     sunrise: boolean
     dhuhr: boolean
     asr: boolean
+    sunset: boolean
     maghrib: boolean
     isha: boolean
     beforeAdhan: number
+    /** How prayer notifications announce themselves. */
+    alertStyle: AlertStyle
+    /** Which bundled Adhaan recording to use (see lib/notifications/adhaan-sounds). */
+    adhaanSoundId: string
   }
   
   // Location
@@ -73,6 +81,7 @@ const defaultSettings: Settings = {
     sunrise: 0,
     dhuhr: 0,
     asr: 0,
+    sunset: 0,
     maghrib: 0,
     isha: 0,
   },
@@ -82,9 +91,12 @@ const defaultSettings: Settings = {
     sunrise: false,
     dhuhr: true,
     asr: true,
+    sunset: false,
     maghrib: true,
     isha: true,
     beforeAdhan: 15,
+    alertStyle: 'notification',
+    adhaanSoundId: DEFAULT_ADHAAN_SOUND_ID,
   },
   
   // Location
@@ -100,6 +112,61 @@ const defaultSettings: Settings = {
   hijriAdjustment: 0,
   timeFormat: '12h',
   dateFormat: 'dd_MM_yyyy',
+}
+
+/**
+ * Reconcile a value loaded from localStorage with the current Settings shape.
+ *
+ * Two jobs, both of which matter for a shipped app that already has users:
+ *
+ *  1. Deep-merge, so a settings object saved by an older build cannot leave a
+ *     newly added key `undefined`. A shallow spread on `notifications` would do
+ *     exactly that, and an `undefined` alert style silently breaks scheduling.
+ *  2. Migrate the legacy `soundType` key (and the never-implemented `adhaanReciter`)
+ *     onto the current `alertStyle` / `adhaanSoundId` fields, so an upgrading user
+ *     keeps the alert style they already chose instead of silently reverting.
+ */
+interface RawNotifications extends Partial<Settings['notifications']> {
+  /** Legacy key, renamed to `alertStyle`. */
+  soundType?: string
+}
+
+function normaliseSettings(raw: unknown): Settings {
+  const source = (raw ?? {}) as Partial<Settings> & {
+    notifications?: RawNotifications
+  }
+
+  const sourceNotifications: RawNotifications = source.notifications ?? {}
+
+  // `soundType` was the previous name for `alertStyle`; prefer the new key.
+  const rawStyle = sourceNotifications.alertStyle ?? sourceNotifications.soundType
+  const alertStyle: AlertStyle =
+    rawStyle === 'adhaan' || rawStyle === 'takbir' || rawStyle === 'silent' || rawStyle === 'notification'
+      ? rawStyle
+      : defaultSettings.notifications.alertStyle
+
+  const beforeAdhanRaw = Number(sourceNotifications.beforeAdhan)
+  const beforeAdhan = Number.isFinite(beforeAdhanRaw)
+    ? Math.min(Math.max(Math.round(beforeAdhanRaw), 0), 60)
+    : defaultSettings.notifications.beforeAdhan
+
+  return {
+    ...defaultSettings,
+    ...source,
+    adjustments: { ...defaultSettings.adjustments, ...(source.adjustments ?? {}) },
+    notifications: {
+      ...defaultSettings.notifications,
+      ...sourceNotifications,
+      alertStyle,
+      beforeAdhan,
+      adhaanSoundId:
+        typeof sourceNotifications.adhaanSoundId === 'string' &&
+        sourceNotifications.adhaanSoundId.length > 0
+          ? sourceNotifications.adhaanSoundId
+          : defaultSettings.notifications.adhaanSoundId,
+    },
+    location: { ...defaultSettings.location, ...(source.location ?? {}) },
+  }
 }
 
 interface SettingsContextType {
@@ -124,7 +191,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings)
-        setSettings({ ...defaultSettings, ...parsed })
+        setSettings(normaliseSettings(parsed))
       } catch (e) {
         console.error('Failed to parse settings:', e)
       }

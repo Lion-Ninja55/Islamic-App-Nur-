@@ -3,7 +3,9 @@ import { Geist, Geist_Mono, Amiri } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SettingsProvider } from '@/context/settings-context'
+import { NotificationProvider } from '@/context/notification-context'
 import { AccentColorHandler } from '@/components/accent-color-handler'
+import { DesktopAnalyticsGate } from '@/components/desktop-analytics-gate'
 import './globals.css'
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" })
@@ -61,11 +63,23 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SettingsProvider>
-            <AccentColorHandler />
-            {children}
+            {/*
+              NotificationProvider sits above every route, so the prayer schedule
+              belongs to the application rather than to the home page. Leaving or
+              unmounting a page can therefore never disturb scheduled alarms.
+            */}
+            <NotificationProvider>
+              <AccentColorHandler />
+              {children}
+            </NotificationProvider>
           </SettingsProvider>
         </ThemeProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        {/*
+          Vercel Analytics is a web-deployment concern. On Windows the app runs from
+          the local filesystem with no server, so the script is suppressed there -
+          Nur+ ships no analytics or tracking on the desktop or Android builds.
+        */}
+        {process.env.NODE_ENV === 'production' && <DesktopAnalyticsGate>{<Analytics />}</DesktopAnalyticsGate>}
       </body>
     </html>
   )
